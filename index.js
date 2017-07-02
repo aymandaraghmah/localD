@@ -8,21 +8,51 @@ var bodyParser = require('body-parser')
 var app = express()
 var urlencodedParser = bodyParser.urlencoded({ extended: false })
 var bot;
+var mysql = require('mysql');
+
+var con = mysql.createConnection({
+    host: "localhost",
+    user: "root",
+    password: "1234",
+    database: "mydb"
+});
+
+
+app.listen(3000);
+var bot_access_token;
+var access_token;
+
 app.get('/ayman', function (req, res) {
     var co = req.query.code;
     var sta = req.query.state;
     console.log("code is :  " + co);
     var propertiesObject = {
         client_id: '117750339904.205675326374', client_secret: 'a7bd2945b2782472ea881d5caf47248a',
-        code: co, redirect_uri: 'https://28127b4b.ngrok.io/ayman'
+        code: co, redirect_uri: 'https://84e8c341.ngrok.io/ayman'
     };
 
     request({ url: 'https://slack.com/api/oauth.access', qs: propertiesObject }, function (err, response, body) {
         if (err) { console.log(err); return; }
         console.log("access token: " + body);
-
+        bot_access_token = (JSON.parse(body)).bot.bot_access_token;
+        access_token = (JSON.parse(body)).access_token;
         console.log("access token: " + (JSON.parse(body)).bot.bot_access_token);
-         bot = startConnection((JSON.parse(body)).bot.bot_access_token);
+        bot = startConnection((JSON.parse(body)).bot.bot_access_token)
+
+        con.connect(function (err) {
+            if (err) throw err;
+            console.log("Connected!");
+            var sql = "INSERT INTO Tokens (Token_Type, Token_Value) VALUES ?";
+            var values = [
+                ['access_TOken', access_token],
+                ['bot_access_TOken', bot_access_token],
+            ];
+            con.query(sql, [values], function (err, result) {
+                if (err) throw err;
+                console.log("Number of records inserted: " + result.affectedRows);
+            });
+        });
+
 
     });
     console.log("code is :  " + co);
@@ -30,7 +60,6 @@ app.get('/ayman', function (req, res) {
 
 });
 
-app.listen(3000);
 
 
 var controller = Botkit.slackbot({
@@ -43,13 +72,15 @@ var controller = Botkit.slackbot({
     }
     );;
 
+
+//var bot = startConnection("xoxb-204194928624-N52Qgzh2TAmTcbybKi5tCybK")
 controller.hears('hi', 'direct_message', function (bot, message) {
 
     bot.reply(message, {
         attachments: [
             {
-                title: 'Do you want to interact with my buttons?',
-                callback_id: '123',
+                title: 'Okay, you asked for a time off on Mon, Jul 03 at 08:00 am to Mon, Jul 03 at 05:00 pm and that would be 1.00 working day.[Note]: There is an already taken time off  from Sun, Jul 02 at 08:00 am to Thu, Jul 13 at 05:00 pm and it will be overwritten when you press "Yes". Should I go ahead ?',
+                callback_id: 'normal_vacation',
                 attachment_type: 'default',
                 actions: [
                     {
@@ -62,6 +93,12 @@ controller.hears('hi', 'direct_message', function (bot, message) {
                         "name": "no",
                         "text": "No",
                         "value": "no",
+                        "type": "button",
+                    },
+                    {
+                        "name": "addcomment",
+                        "text": "Add comment",
+                        "value": "addcomment",
                         "type": "button",
                     }
                 ]
@@ -88,18 +125,39 @@ function sendMessageToSlackResponseURL(responseURL, JSONmessage) {
 }
 
 app.post('/slack/actions', urlencodedParser, (req, res) => {
+    var message;
     res.status(200).end() // best practice to respond with 200 status
     var actionJSONPayload = JSON.parse(req.body.payload) // parse URL-encoded payload JSON string
-    var message = {
-        "text": actionJSONPayload.user.name + " clicked: " + actionJSONPayload.actions[0].name,
-        "replace_original": false
+    if (actionJSONPayload.callback_id == "normal_vacation") {
+        if (actionJSONPayload.actions[0].name == "yes") {
+            message = {
+                attachments: [
+                    {
+                        title: "Your request ( Mon, Jul 03 at 08:00 am to Mon, Jul 03 at 05:00 pm ) has been submitted and is awaiting your managers approval.",
+                        callback_id: 'normal_vacation',
+                        attachment_type: 'default',
+                        actions: [
+                            {
+                                "name": "cancel",
+                                "text": "Cancel",
+                                "value": "cancel",
+                                "type": "button",
+                            }
+                        ]
+                    }
+                ],
+                "replace_original": true
+            }
+        }
     }
+
     console.log("Replied message is :" + JSON.stringify(message));
+    console.log("PAYLOAD is :" + JSON.stringify(actionJSONPayload));
+
     sendMessageToSlackResponseURL(actionJSONPayload.response_url, message)
 })
 
 function startConnection(token) {
-    console.log("token is : "+token);
     var bot = controller.spawn({
         token: token
     }).startRTM(function (err, bot, payload) {
