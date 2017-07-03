@@ -10,9 +10,12 @@ var con = mysql.createConnection({
 con.connect(function(err) {
   if (err) throw err;
   console.log("Connected!");
-  var sql = "CREATE TABLE Configurations (ID INT NOT NULL AUTO_INCREMENT,   Name VARCHAR(255),   Value VARCHAR(255),    PRIMARY KEY (ID))";
-  con.query(sql, function (err, result) {
+  var sql = "CREATE TABLE Configurations (ID INT NOT NULL AUTO_INCREMENT,   Name VARCHAR(255) UNIQUE,   Value VARCHAR(255) UNIQUE,    PRIMARY KEY (ID))";
+
+    con.query(sql, function (err, result) {
     if (err) throw err;
     console.log("Table created");
   });
 });
+
+//"CREATE TABLE Configurations (ID INT NOT NULL AUTO_INCREMENT,   Name VARCHAR(255) UNIQUE,   Value VARCHAR(255) UNIQUE,    PRIMARY KEY (ID))";

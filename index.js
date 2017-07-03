@@ -22,43 +22,51 @@ app.listen(3000);
 var bot_access_token;
 var access_token;
 
-app.get('/ayman', function (req, res) {
-    var co = req.query.code;
-    var sta = req.query.state;
-    console.log("code is :  " + co);
-    var propertiesObject = {
-        client_id: '117750339904.205675326374', client_secret: 'a7bd2945b2782472ea881d5caf47248a',
-        code: co, redirect_uri: 'https://84e8c341.ngrok.io/ayman'
-    };
+// app.get('/oauth', function (req, res) {
+//     // con.end();
 
-    request({ url: 'https://slack.com/api/oauth.access', qs: propertiesObject }, function (err, response, body) {
-        if (err) { console.log(err); return; }
-        console.log("access token: " + body);
-        bot_access_token = (JSON.parse(body)).bot.bot_access_token;
-        access_token = (JSON.parse(body)).access_token;
-        console.log("access token: " + (JSON.parse(body)).bot.bot_access_token);
-        bot = startConnection((JSON.parse(body)).bot.bot_access_token)
+//     var co = req.query.code;
+//     var sta = req.query.state;
+//     console.log("code is :  " + co);
+//     var propertiesObject = {
+//         client_id: '117750339904.205675326374', client_secret: 'a7bd2945b2782472ea881d5caf47248a',
+//         code: co, redirect_uri: 'https://b60e61b3.ngrok.io/oauth'
+//     };
 
-        con.connect(function (err) {
-            if (err) throw err;
-            console.log("Connected!");
-            var sql = "INSERT INTO Tokens (Token_Type, Token_Value) VALUES ?";
-            var values = [
-                ['access_TOken', access_token],
-                ['bot_access_TOken', bot_access_token],
-            ];
-            con.query(sql, [values], function (err, result) {
-                if (err) throw err;
-                console.log("Number of records inserted: " + result.affectedRows);
-            });
-        });
+//     request({ url: 'https://slack.com/api/oauth.access', qs: propertiesObject }, function (err, response, body) {
 
+//         if (err) { console.log(err); return; }
+//         console.log("access token: " + body);
+//         bot_access_token = (JSON.parse(body)).bot.bot_access_token;
+//         access_token = (JSON.parse(body)).access_token;
+//         console.log("access token: " + (JSON.parse(body)).bot.bot_access_token);
+//         bot = startConnection((JSON.parse(body)).bot.bot_access_token)
+//         con.connect(function (err) {
+//             if (err) {
 
-    });
-    console.log("code is :  " + co);
-    console.log("state is :  " + sta);
+//                 console.log("Already connected!");
 
-});
+//             }
+//             console.log("Connected!");
+//         });
+
+//         var sql = "REPLACE INTO Configurations (Name, Value) VALUES ? ";
+//         var values = [
+//             ['access_token', access_token],
+//             ['bot_access_token', bot_access_token]
+
+//         ];
+//         con.query(sql, [values], function (err, result) {
+//             if (err) throw err;
+//             console.log("Number of records inserted: " + result.affectedRows);
+//         });
+
+        
+
+//     });
+//     console.log("code is :  " + co);
+//     console.log("state is :  " + sta);
+// });
 
 
 
@@ -157,13 +165,26 @@ app.post('/slack/actions', urlencodedParser, (req, res) => {
     sendMessageToSlackResponseURL(actionJSONPayload.response_url, message)
 })
 
+controller.setupWebserver('3000', function(err, webserver) {
+    controller.createWebhookEndpoints(controller.webserver);
+
+    controller.createOauthEndpoints(controller.webserver, function(err, req, res) {
+        if (err) {
+            res.status(500).send('ERROR: ' + err);
+        } else {
+            res.send('Success!');
+        }
+    });
+
+    // If not also opening an RTM connection
+    controller.startTicking();
+});
+
+
+
 function startConnection(token) {
     var bot = controller.spawn({
         token: token
-    }).startRTM(function (err, bot, payload) {
-        if (err) {
-            throw new Error('Could not connect to Slack');
-        } else { console.log(payload); }
     });
     return bot;
 }
